@@ -1,0 +1,25 @@
+# Lambda Docker image for RAG Agent API
+FROM public.ecr.aws/lambda/python:3.11
+
+# Install system dependencies
+RUN yum install -y gcc gcc-c++ python3-devel && yum clean all
+
+# Upgrade pip to find pre-built wheels
+RUN pip install --upgrade pip
+
+# Copy all files needed for pip install
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+# Install the package and dependencies (prefer binary to avoid compiling)
+RUN pip install --no-cache-dir --prefer-binary . && \
+    pip install --no-cache-dir mangum>=0.17.0
+
+# Copy the Lambda handler
+COPY infrastructure/lambda/handler.py ./
+
+# Set the Python path to include the src directory
+ENV PYTHONPATH="/var/task/src"
+
+# Set the handler
+CMD ["handler.handler"]
