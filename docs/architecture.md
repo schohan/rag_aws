@@ -27,15 +27,15 @@ The RAG Agent is an AI-powered question-answering system that combines:
 
 ### Key Technologies
 
-| Component | Technology |
-|-----------|------------|
-| LLM Provider | AWS Bedrock (Claude, Titan) |
-| Vector Storage | Amazon S3 Vectors |
-| Metadata Storage | Amazon DynamoDB |
-| Document Storage | Amazon S3 |
-| Embeddings | Bedrock Titan Embeddings |
-| API Framework | FastAPI |
-| Infrastructure | AWS CDK |
+| Component        | Technology                  |
+| ---------------- | --------------------------- |
+| LLM Provider     | AWS Bedrock (Claude, Titan) |
+| Vector Storage   | Amazon S3 Vectors           |
+| Metadata Storage | Amazon DynamoDB             |
+| Document Storage | Amazon S3                   |
+| Embeddings       | Bedrock Titan Embeddings    |
+| API Framework    | FastAPI                     |
+| Infrastructure   | AWS CDK                     |
 
 ---
 
@@ -264,14 +264,14 @@ sequenceDiagram
     participant S3V as S3 Vectors
 
     IP->>ES: generate_embeddings_batch(chunks)
-    
+
     loop For each batch (25 texts)
         ES->>BR: invoke_model(Titan Embed)
         BR-->>ES: embeddings (1536 dim)
     end
-    
+
     ES-->>IP: all embeddings
-    
+
     IP->>S3V: store_vectors(chunks + embeddings)
     S3V-->>IP: stored confirmation
 ```
@@ -334,27 +334,27 @@ sequenceDiagram
 
     C->>API: POST /query {query, top_k}
     API->>RA: query(request)
-    
+
     Note over RA: Retrieval Phase
     RA->>ES: generate_query_embedding(query)
     ES->>BS: invoke_model(Titan Embed)
     BS-->>ES: query_vector [1536]
     ES-->>RA: query_vector
-    
+
     RA->>VS: search_vectors(query_vector, top_k)
     VS-->>RA: [VectorSearchResult, ...]
-    
+
     Note over RA: Filter by similarity_threshold
-    
+
     Note over RA: Augmentation Phase
     RA->>RA: Build context from results
     RA->>RA: Add conversation history
     RA->>RA: Construct prompt
-    
+
     Note over RA: Generation Phase
     RA->>BS: generate_text(prompt, system_prompt)
     BS-->>RA: {content, token_usage}
-    
+
     RA->>RA: Build SourceReferences
     RA-->>API: QueryResponse
     API-->>C: {answer, sources, latency_ms}
@@ -446,7 +446,7 @@ flowchart TB
 flowchart TB
     subgraph CDK["AWS CDK App"]
         App["CDK App"]
-        
+
         subgraph BaseStack["RAGAgentStack (Base)"]
             S3B["S3 Bucket"]
             DDB["DynamoDB Table"]
@@ -513,11 +513,11 @@ erDiagram
 
 **Key Patterns:**
 
-| Entity | PK (Partition Key) | SK (Sort Key) |
-|--------|-----------|-----------|
-| Document Metadata | `DOC#<document_id>` | `METADATA` |
-| Conversation | `CONV#<conversation_id>` | `MESSAGE#<timestamp>` |
-| GSI1 (Status Index) | `STATUS#<status>` | `<created_at>` |
+| Entity              | PK (Partition Key)       | SK (Sort Key)         |
+| ------------------- | ------------------------ | --------------------- |
+| Document Metadata   | `DOC#<document_id>`      | `METADATA`            |
+| Conversation        | `CONV#<conversation_id>` | `MESSAGE#<timestamp>` |
+| GSI1 (Status Index) | `STATUS#<status>`        | `<created_at>`        |
 
 **Status Values:** `PENDING` | `PROCESSING` | `INDEXED` | `FAILED`
 
@@ -676,17 +676,17 @@ sequenceDiagram
 flowchart LR
     subgraph Endpoints["API Endpoints"]
         direction TB
-        
+
         subgraph Health["Health"]
             GET_Health["GET /health"]
         end
-        
+
         subgraph Query["Query"]
             POST_Query["POST /query"]
             POST_Chat["POST /chat"]
             POST_Stream["POST /chat/stream"]
         end
-        
+
         subgraph Documents["Documents"]
             GET_Docs["GET /documents"]
             POST_Ingest["POST /documents/ingest"]
@@ -694,7 +694,7 @@ flowchart LR
             GET_Doc["GET /documents/{id}"]
             DEL_Doc["DELETE /documents/{id}"]
         end
-        
+
         subgraph Tools["Tools"]
             GET_Tools["GET /tools"]
         end
@@ -720,23 +720,23 @@ flowchart TB
             AccessKey["AWS_ACCESS_KEY_ID"]
             SecretKey["AWS_SECRET_ACCESS_KEY"]
         end
-        
+
         subgraph S3["S3 Settings"]
             Bucket["S3_BUCKET_NAME"]
             VecIndex["S3_VECTOR_INDEX_NAME"]
             DocPrefix["S3_DOCUMENTS_PREFIX"]
         end
-        
+
         subgraph DynamoDB["DynamoDB Settings"]
             Table["DYNAMODB_TABLE_NAME"]
         end
-        
+
         subgraph Bedrock["Bedrock Settings"]
             LLM_Model["BEDROCK_LLM_MODEL_ID"]
             Embed_Model["BEDROCK_EMBEDDING_MODEL_ID"]
             KB_ID["BEDROCK_KNOWLEDGE_BASE_ID"]
         end
-        
+
         subgraph Vector["Vector Settings"]
             Dimension["VECTOR_DIMENSION"]
             TopK["VECTOR_TOP_K"]
@@ -762,17 +762,17 @@ flowchart TB
             VPC["VPC (Optional)"]
             SG["Security Groups"]
         end
-        
+
         subgraph Auth["Authentication"]
             APIGW_Auth["API Gateway Auth<br/>(IAM/Cognito)"]
             CORS["CORS Policy"]
         end
-        
+
         subgraph IAM_Roles["IAM Roles"]
             AppRole["App Role<br/>(Lambda/ECS)"]
             BedrockRole["Bedrock Role"]
         end
-        
+
         subgraph Data["Data Security"]
             S3_Enc["S3 Encryption<br/>(SSE-S3)"]
             DDB_Enc["DynamoDB Encryption"]
@@ -783,7 +783,7 @@ flowchart TB
     AppRole -->|"s3:*"| S3_Enc
     AppRole -->|"dynamodb:*"| DDB_Enc
     AppRole -->|"bedrock:*"| BedrockRole
-    
+
     style Network fill:#ffebee
     style Auth fill:#fff3e0
     style IAM_Roles fill:#e8f5e9
@@ -794,13 +794,13 @@ flowchart TB
 
 ## Performance Considerations
 
-| Component | Optimization |
-|-----------|-------------|
-| **Embeddings** | Batch processing (25 texts/batch) |
+| Component         | Optimization                                   |
+| ----------------- | ---------------------------------------------- |
+| **Embeddings**    | Batch processing (25 texts/batch)              |
 | **Vector Search** | Top-K limiting, similarity threshold filtering |
-| **Lambda** | 1024MB memory, 60s timeout |
-| **DynamoDB** | On-demand capacity, GSI for status queries |
-| **S3** | Lifecycle rules for old versions |
+| **Lambda**        | 1024MB memory, 60s timeout                     |
+| **DynamoDB**      | On-demand capacity, GSI for status queries     |
+| **S3**            | Lifecycle rules for old versions               |
 
 ---
 
@@ -831,3 +831,7593 @@ timeline
 - [Amazon S3 Vectors](https://docs.aws.amazon.com/s3/vectors/)
 - [AWS CDK Python Reference](https://docs.aws.amazon.com/cdk/api/v2/python/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+This version is optimized for clarity, multi‑account governance, and aligns with the architecture you’re building.
+
+---
+
+## **🔐 Full AssumeRoleWithWebIdentity Flow — Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant UC as Use Case Client
+    participant ALB as ALB (Central Account)
+    participant ECS as ECS Task (GenAI Gateway)
+    participant IDP as Enterprise IdP<br/>(Okta / Azure AD / IAM Identity Center)
+    participant OIDC as OIDC Provider<br/>(Central Account)
+    participant STS as AWS STS
+    participant SMA as Shared Model Account<br/>IAM Role + Bedrock
+
+    UC->>ALB: 1. Send Bedrock request<br/>(includes use_case_id)
+    ALB->>ECS: 2. Forward request to ECS task
+
+    ECS->>ECS: 3. Check ElastiCache for cached STS creds
+    ECS-->>ECS: No cached credentials found
+
+    ECS->>IDP: 4. Request Web Identity token<br/>(for use_case_id)
+    IDP-->>ECS: 5. Return signed IdP token
+
+    ECS->>OIDC: 6. Exchange IdP token for OIDC token
+    OIDC-->>ECS: 7. Return OIDC token
+
+    ECS->>STS: 8. AssumeRoleWithWebIdentity<br/>(OIDC token + target role ARN)
+    STS->>IDP: 9. Validate token signature & claims
+    IDP-->>STS: 10. Token valid
+
+    STS-->>ECS: 11. Return temporary STS credentials<br/>(AccessKey, SecretKey, SessionToken)
+
+    ECS->>ECS: 12. Cache STS credentials in ElastiCache<br/>(TTL-based)
+
+    ECS->>SMA: 13. Invoke Bedrock model<br/>using temporary STS credentials
+    SMA-->>ECS: 14. Return model response
+
+    ECS-->>ALB: 15. Forward response
+    ALB-->>UC: 16. Return final model output
+```
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+This version is optimized for clarity, multi‑account governance, and aligns with the architecture you’re building.
+
+---
+
+## **🔐 Full AssumeRoleWithWebIdentity Flow — Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant UC as Use Case Client
+    participant ALB as ALB (Central Account)
+    participant ECS as ECS Task (GenAI Gateway)
+    participant IDP as Enterprise IdP<br/>(Okta / Azure AD / IAM Identity Center)
+    participant OIDC as OIDC Provider<br/>(Central Account)
+    participant STS as AWS STS
+    participant SMA as Shared Model Account<br/>IAM Role + Bedrock
+
+    UC->>ALB: 1. Send Bedrock request<br/>(includes use_case_id)
+    ALB->>ECS: 2. Forward request to ECS task
+
+    ECS->>ECS: 3. Check ElastiCache for cached STS creds
+    ECS-->>ECS: No cached credentials found
+
+    ECS->>IDP: 4. Request Web Identity token<br/>(for use_case_id)
+    IDP-->>ECS: 5. Return signed IdP token
+
+    ECS->>OIDC: 6. Exchange IdP token for OIDC token
+    OIDC-->>ECS: 7. Return OIDC token
+
+    ECS->>STS: 8. AssumeRoleWithWebIdentity<br/>(OIDC token + target role ARN)
+    STS->>IDP: 9. Validate token signature & claims
+    IDP-->>STS: 10. Token valid
+
+    STS-->>ECS: 11. Return temporary STS credentials<br/>(AccessKey, SecretKey, SessionToken)
+
+    ECS->>ECS: 12. Cache STS credentials in ElastiCache<br/>(TTL-based)
+
+    ECS->>SMA: 13. Invoke Bedrock model<br/>using temporary STS credentials
+    SMA-->>ECS: 14. Return model response
+
+    ECS-->>ALB: 15. Forward response
+    ALB-->>UC: 16. Return final model output
+```
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+This version is optimized for clarity, multi‑account governance, and aligns with the architecture you’re building.
+
+---
+
+## **🔐 Full AssumeRoleWithWebIdentity Flow — Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant UC as Use Case Client
+    participant ALB as ALB (Central Account)
+    participant ECS as ECS Task (GenAI Gateway)
+    participant IDP as Enterprise IdP<br/>(Okta / Azure AD / IAM Identity Center)
+    participant OIDC as OIDC Provider<br/>(Central Account)
+    participant STS as AWS STS
+    participant SMA as Shared Model Account<br/>IAM Role + Bedrock
+
+    UC->>ALB: 1. Send Bedrock request<br/>(includes use_case_id)
+    ALB->>ECS: 2. Forward request to ECS task
+
+    ECS->>ECS: 3. Check ElastiCache for cached STS creds
+    ECS-->>ECS: No cached credentials found
+
+    ECS->>IDP: 4. Request Web Identity token<br/>(for use_case_id)
+    IDP-->>ECS: 5. Return signed IdP token
+
+    ECS->>OIDC: 6. Exchange IdP token for OIDC token
+    OIDC-->>ECS: 7. Return OIDC token
+
+    ECS->>STS: 8. AssumeRoleWithWebIdentity<br/>(OIDC token + target role ARN)
+    STS->>IDP: 9. Validate token signature & claims
+    IDP-->>STS: 10. Token valid
+
+    STS-->>ECS: 11. Return temporary STS credentials<br/>(AccessKey, SecretKey, SessionToken)
+
+    ECS->>ECS: 12. Cache STS credentials in ElastiCache<br/>(TTL-based)
+
+    ECS->>SMA: 13. Invoke Bedrock model<br/>using temporary STS credentials
+    SMA-->>ECS: 14. Return model response
+
+    ECS-->>ALB: 15. Forward response
+    ALB-->>UC: 16. Return final model output
+```
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+This version is optimized for clarity, multi‑account governance, and aligns with the architecture you’re building.
+
+---
+
+## **🔐 Full AssumeRoleWithWebIdentity Flow — Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant UC as Use Case Client
+    participant ALB as ALB (Central Account)
+    participant ECS as ECS Task (GenAI Gateway)
+    participant IDP as Enterprise IdP<br/>(Okta / Azure AD / IAM Identity Center)
+    participant OIDC as OIDC Provider<br/>(Central Account)
+    participant STS as AWS STS
+    participant SMA as Shared Model Account<br/>IAM Role + Bedrock
+
+    UC->>ALB: 1. Send Bedrock request<br/>(includes use_case_id)
+    ALB->>ECS: 2. Forward request to ECS task
+
+    ECS->>ECS: 3. Check ElastiCache for cached STS creds
+    ECS-->>ECS: No cached credentials found
+
+    ECS->>IDP: 4. Request Web Identity token<br/>(for use_case_id)
+    IDP-->>ECS: 5. Return signed IdP token
+
+    ECS->>OIDC: 6. Exchange IdP token for OIDC token
+    OIDC-->>ECS: 7. Return OIDC token
+
+    ECS->>STS: 8. AssumeRoleWithWebIdentity<br/>(OIDC token + target role ARN)
+    STS->>IDP: 9. Validate token signature & claims
+    IDP-->>STS: 10. Token valid
+
+    STS-->>ECS: 11. Return temporary STS credentials<br/>(AccessKey, SecretKey, SessionToken)
+
+    ECS->>ECS: 12. Cache STS credentials in ElastiCache<br/>(TTL-based)
+
+    ECS->>SMA: 13. Invoke Bedrock model<br/>using temporary STS credentials
+    SMA-->>ECS: 14. Return model response
+
+    ECS-->>ALB: 15. Forward response
+    ALB-->>UC: 16. Return final model output
+```
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+This version is optimized for clarity, multi‑account governance, and aligns with the architecture you’re building.
+
+---
+
+## **🔐 Full AssumeRoleWithWebIdentity Flow — Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant UC as Use Case Client
+    participant ALB as ALB (Central Account)
+    participant ECS as ECS Task (GenAI Gateway)
+    participant IDP as Enterprise IdP<br/>(Okta / Azure AD / IAM Identity Center)
+    participant OIDC as OIDC Provider<br/>(Central Account)
+    participant STS as AWS STS
+    participant SMA as Shared Model Account<br/>IAM Role + Bedrock
+
+    UC->>ALB: 1. Send Bedrock request<br/>(includes use_case_id)
+    ALB->>ECS: 2. Forward request to ECS task
+
+    ECS->>ECS: 3. Check ElastiCache for cached STS creds
+    ECS-->>ECS: No cached credentials found
+
+    ECS->>IDP: 4. Request Web Identity token<br/>(for use_case_id)
+    IDP-->>ECS: 5. Return signed IdP token
+
+    ECS->>OIDC: 6. Exchange IdP token for OIDC token
+    OIDC-->>ECS: 7. Return OIDC token
+
+    ECS->>STS: 8. AssumeRoleWithWebIdentity<br/>(OIDC token + target role ARN)
+    STS->>IDP: 9. Validate token signature & claims
+    IDP-->>STS: 10. Token valid
+
+    STS-->>ECS: 11. Return temporary STS credentials<br/>(AccessKey, SecretKey, SessionToken)
+
+    ECS->>ECS: 12. Cache STS credentials in ElastiCache<br/>(TTL-based)
+
+    ECS->>SMA: 13. Invoke Bedrock model<br/>using temporary STS credentials
+    SMA-->>ECS: 14. Return model response
+
+    ECS-->>ALB: 15. Forward response
+    ALB-->>UC: 16. Return final model output
+```
+
+# NOTE: THis is an unrelated graph showing multi account accecss in Bedrock
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+---
+Here’s a compact but complete take on both.
+
+---
+
+## Diagram showing the trust relationships
+
+```mermaid
+graph TD
+    subgraph Enterprise_Identity[Enterprise Identity]
+        IDP[Enterprise IdP<br/>Okta / Azure AD / IAM Identity Center]
+    end
+
+    subgraph Central_Account[Central GenAI Gateway Account]
+        OIDC[OIDC Provider<br/>backed by Enterprise IdP]
+        ECS[ECS Tasks<br/>GenAI Gateway]
+    end
+
+    subgraph Shared_Model_Account_1[Shared Model Account A]
+        RoleA[Role: GenAIGateway-UseCaseA-BedrockInvokeRole]
+        BedrockA[Amazon Bedrock Runtime]
+    end
+
+    subgraph Shared_Model_Account_2[Shared Model Account B]
+        RoleB[Role: GenAIGateway-UseCaseB-BedrockInvokeRole]
+        BedrockB[Amazon Bedrock Runtime]
+    end
+
+    IDP -->|Issues Web Identity Token<br/>for use case identity| OIDC
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleA
+    ECS -->|Uses Web Identity Token<br/>in AssumeRoleWithWebIdentity| RoleB
+
+    RoleA -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+    RoleB -->|Trusts OIDC Provider<br/>sts:AssumeRoleWithWebIdentity| OIDC
+
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockA
+    ECS -->|InvokeModel /<br/>InvokeModelWithResponseStream<br/>using STS creds| BedrockB
+```
+
+
+**Key ideas:**
+
+- Shared model account roles **trust** the OIDC provider in the central account.
+- ECS tasks **assume those roles with Web Identity** using IdP‑issued tokens.
+- Each role is **scoped per use case and per model set**.
+
+---
+
+## Multi‑use‑case IAM layout for large enterprises
+
+### 1. High‑level pattern
+
+- **Central account**
+  - **OIDC provider** configured against enterprise IdP.
+  - **ECS tasks** that:
+    - Receive requests tagged with `use_case_id`.
+    - Obtain Web Identity tokens for that use case.
+    - Call `AssumeRoleWithWebIdentity` into shared model accounts.
+- **N shared model accounts**
+  - Each has **one or more IAM roles per use case** (or per use‑case group).
+  - Each role:
+    - Trusts the central account’s OIDC provider.
+    - Grants least‑privilege Bedrock permissions.
+
+### 2. Example role layout across accounts
+
+| Layer                    | Entity / Pattern                                      | Purpose                                      |
+|--------------------------|--------------------------------------------------------|----------------------------------------------|
+| Central account          | `OIDCProvider/enterprise-idp`                         | Federated identity from IdP                  |
+| Central account          | `ECS Task Role: GenAIGatewayTaskRole`                 | Calls STS, ElastiCache, logging, etc.        |
+| Shared model account A   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account A    |
+| Shared model account A   | `Role: GenAIGateway-UseCaseB-BedrockInvokeRole`       | Use Case B → specific models in Account A    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseA-BedrockInvokeRole`       | Use Case A → specific models in Account B    |
+| Shared model account B   | `Role: GenAIGateway-UseCaseC-BedrockInvokeRole`       | Use Case C → specific models in Account B    |
+
+You can choose:
+
+- **Per‑use‑case roles** (most explicit, best for strong isolation).
+- Or **per‑domain roles** (e.g., `GenAIGateway-Marketing-BedrockInvokeRole`) if you want coarser grouping.
+
+### 3. Example trust policy for multiple use cases
+
+Shared model account role that allows **multiple use cases** from the same IdP group:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<CENTRAL_ACCOUNT_ID>:oidc-provider/<IDP_PROVIDER>"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "ForAnyValue:StringEquals": {
+          "<IDP_PROVIDER>:groups": [
+            "genai-usecase-marketing",
+            "genai-usecase-analytics"
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+### 4. Example permissions policy per role
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSpecificModels",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+        "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-text-premier-v1:0"
+      ]
+    }
+  ]
+}
+```
+
+You’d vary the `Resource` list per role to encode:
+
+- **Which models** a use case can access.
+- **Which accounts/regions** they can hit.
+
+---
+
+If you want to go one level deeper, we can sketch:
+
+- A **naming convention** for roles and policies across dozens of accounts.
+- A **Terraform module layout** that lets you stamp out new use cases and model accounts with a single config block.
+
+---
+
+
+Absolutely — here’s a clean, scalable **enterprise‑grade naming convention** for IAM roles and policies that works across **dozens or even hundreds of AWS accounts**, including the multi‑account Bedrock model‑access pattern you’re building.
+
+This is designed for clarity, automation, and long‑term maintainability in large organizations.
+
+---
+
+# 🧩 Core Principles Behind the Naming Convention
+
+A good naming system must:
+
+- Encode **account type** (central vs. shared model account)
+- Encode **use case identity**
+- Encode **model access scope**
+- Be **machine‑parsable** for automation (Terraform, CDK, pipelines)
+- Support **hundreds of roles** without collisions
+- Support **grouping** (e.g., domain‑level roles)
+
+The pattern below does all of that.
+
+---
+
+# 🏗️ Recommended Naming Convention
+
+## 1. IAM Roles (in Shared Model Accounts)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<Capability>Role
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+ACME-GenAI-Analytics-BedrockInvokeRole
+```
+
+### Field meanings
+- **OrgPrefix** — your company prefix (`ACME`, `CONTOSO`, etc.)
+- **Layer** — `GenAI` or `GenAIGateway`
+- **UseCaseOrGroup** — `UseCaseA`, `FraudDetection`, `Marketing`, etc.
+- **Capability** — `BedrockInvoke`, `ModelAccess`, etc.
+
+---
+
+## 2. IAM Policies (Permissions Policies)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-<ModelProvider>-<PermissionType>Policy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-Analytics-MultiModel-InvokePolicy
+```
+
+### Why this works
+- You can instantly see **which models** a use case can access.
+- You can attach multiple model‑specific policies to the same role.
+- You can automate policy generation per model provider.
+
+---
+
+## 3. Trust Policies (Role Trust Documents)
+
+### **Pattern**
+```
+<OrgPrefix>-<Layer>-<UseCaseOrGroup>-TrustPolicy
+```
+
+### **Example**
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+These are usually embedded inline, but naming them helps when stored in IaC repos.
+
+---
+
+## 4. OIDC Provider Naming (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-IdP-<ProviderName>
+```
+
+### **Example**
+```
+ACME-IdP-Okta
+ACME-IdP-AzureAD
+```
+
+This makes trust relationships readable across accounts.
+
+---
+
+## 5. ECS Task Roles (Central Account)
+
+### **Pattern**
+```
+<OrgPrefix>-GenAIGateway-TaskRole
+```
+
+### **Example**
+```
+ACME-GenAIGateway-TaskRole
+```
+
+This role is the one that calls STS.
+
+---
+
+# 🗂️ How This Scales Across Dozens of Accounts
+
+Imagine you have:
+
+- 1 central account  
+- 20 shared model accounts  
+- 40 use cases  
+
+Using the naming convention:
+
+### Shared Model Account 17
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseB-BedrockInvokeRole
+ACME-GenAI-UseCaseC-BedrockInvokeRole
+...
+```
+
+### Shared Model Account 18
+```
+ACME-GenAI-UseCaseA-BedrockInvokeRole
+ACME-GenAI-UseCaseD-BedrockInvokeRole
+ACME-GenAI-Marketing-BedrockInvokeRole
+...
+```
+
+### Policies
+```
+ACME-GenAI-UseCaseA-Anthropic-InvokePolicy
+ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy
+ACME-GenAI-UseCaseB-Meta-InvokePolicy
+ACME-GenAI-Marketing-MultiModel-InvokePolicy
+```
+
+### Trust Policies
+```
+ACME-GenAI-UseCaseA-TrustPolicy
+ACME-GenAI-Marketing-TrustPolicy
+```
+
+Everything is:
+
+- Predictable  
+- Scriptable  
+- Easy to audit  
+- Easy to rotate  
+- Easy to onboard new use cases  
+
+---
+
+# 🧠 Bonus: Naming Convention for Terraform Modules (Optional)
+
+If you want to stamp out roles automatically:
+
+```
+module "usecaseA_bedrock_role" {
+  source = "modules/genai-bedrock-role"
+  use_case = "UseCaseA"
+  model_providers = ["Anthropic", "AmazonTitan"]
+}
+```
+
+This aligns perfectly with the naming scheme above.
+
+---
+
+If you want, I can also generate:
+
+- A **full enterprise naming standard document**  
+- A **Terraform module template** that implements this convention  
+- A **diagram** showing how naming maps across accounts  
+
+Just tell me what direction you want to take next.
+
+#====
+
+Below is a clean, readable diagram that shows **how the naming convention maps across the Central Account and multiple Shared Model Accounts**. It ties together roles, trust policies, and model‑specific permissions in a way that scales across dozens or hundreds of accounts.
+
+---
+
+## 🗺️ Diagram: Naming Convention Mapped Across Accounts
+
+```mermaid
+graph TD
+
+    %% CENTRAL ACCOUNT
+    subgraph Central_Account["Central GenAI Gateway Account"]
+        OIDC["OIDC Provider\nACME-IdP-Okta"]
+        TaskRole["ECS Task Role\nACME-GenAIGateway-TaskRole"]
+    end
+
+    %% SHARED MODEL ACCOUNT A
+    subgraph SMA1["Shared Model Account A"]
+        RoleA["ACME-GenAI-UseCaseA-BedrockInvokeRole"]
+        PolicyA1["ACME-GenAI-UseCaseA-Anthropic-InvokePolicy"]
+        PolicyA2["ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT B
+    subgraph SMA2["Shared Model Account B"]
+        RoleB["ACME-GenAI-Marketing-BedrockInvokeRole"]
+        PolicyB1["ACME-GenAI-Marketing-MultiModel-InvokePolicy"]
+    end
+
+    %% SHARED MODEL ACCOUNT C
+    subgraph SMA3["Shared Model Account C"]
+        RoleC["ACME-GenAI-Analytics-BedrockInvokeRole"]
+        PolicyC1["ACME-GenAI-Analytics-Anthropic-InvokePolicy"]
+    end
+
+    %% TRUST RELATIONSHIPS
+    OIDC -->|"Trusts OIDC Provider\n(sts:AssumeRoleWithWebIdentity)"| RoleA
+    OIDC -->|"Trusts OIDC Provider"| RoleB
+    OIDC -->|"Trusts OIDC Provider"| RoleC
+
+    %% ROLE → POLICY ATTACHMENTS
+    RoleA --> PolicyA1
+    RoleA --> PolicyA2
+
+    RoleB --> PolicyB1
+
+    RoleC --> PolicyC1
+
+    %% ECS TASK ROLE → ASSUME ROLE
+    TaskRole -->|"AssumeRoleWithWebIdentity\nper use case"| RoleA
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleB
+    TaskRole -->|"AssumeRoleWithWebIdentity"| RoleC
+```
+
+---
+
+## 🧠 What This Diagram Shows
+
+### **1. Central Account**
+- Hosts the **OIDC provider** (`ACME-IdP-Okta`)
+- Hosts the **ECS Task Role** (`ACME-GenAIGateway-TaskRole`)
+- ECS tasks use Web Identity tokens to assume roles in shared model accounts.
+
+### **2. Shared Model Accounts**
+Each shared model account contains:
+
+- **One or more roles per use case or domain**
+  - `ACME-GenAI-UseCaseA-BedrockInvokeRole`
+  - `ACME-GenAI-Marketing-BedrockInvokeRole`
+  - `ACME-GenAI-Analytics-BedrockInvokeRole`
+
+- **Model‑specific permission policies**
+  - `ACME-GenAI-UseCaseA-Anthropic-InvokePolicy`
+  - `ACME-GenAI-UseCaseA-AmazonTitan-InvokePolicy`
+  - `ACME-GenAI-Marketing-MultiModel-InvokePolicy`
+
+### **3. Trust Relationships**
+Every role in every shared model account trusts:
+
+```
+ACME-IdP-Okta
+```
+
+via:
+
+```
+sts:AssumeRoleWithWebIdentity
+```
+
+### **4. How Naming Helps**
+The naming convention encodes:
+
+- **Org** (`ACME`)
+- **Layer** (`GenAI`, `GenAIGateway`)
+- **Use case or domain** (`UseCaseA`, `Marketing`, `Analytics`)
+- **Capability** (`BedrockInvoke`)
+- **Model provider** (`Anthropic`, `AmazonTitan`, `MultiModel`)
+
+This makes the system:
+
+- Machine‑parsable  
+- Easy to audit  
+- Easy to automate  
+- Easy to scale across dozens of accounts  
+
+---
+
+If you want, I can also generate:
+
+- A **sequence diagram** showing the full AssumeRoleWithWebIdentity flow  
+- A **Terraform module layout** that implements this naming convention  
+- A **policy matrix** mapping use cases to models across accounts  
+
+Just tell me where you want to go next.
+
+=====
+Here’s a clean, enterprise‑grade **sequence diagram** that captures the *entire* `AssumeRoleWithWebIdentity` flow end‑to‑end — from the use case request entering the Central Account to the Bedrock invocation in a Shared Model Account.
+
+This version is optimized for clarity, multi‑account governance, and aligns with the architecture you’re building.
+
+---
+
+## **🔐 Full AssumeRoleWithWebIdentity Flow — Sequence Diagram**
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant UC as Use Case Client
+    participant ALB as ALB (Central Account)
+    participant ECS as ECS Task (GenAI Gateway)
+    participant IDP as Enterprise IdP<br/>(Okta / Azure AD / IAM Identity Center)
+    participant OIDC as OIDC Provider<br/>(Central Account)
+    participant STS as AWS STS
+    participant SMA as Shared Model Account<br/>IAM Role + Bedrock
+
+    UC->>ALB: 1. Send Bedrock request<br/>(includes use_case_id)
+    ALB->>ECS: 2. Forward request to ECS task
+
+    ECS->>ECS: 3. Check ElastiCache for cached STS creds
+    ECS-->>ECS: No cached credentials found
+
+    ECS->>IDP: 4. Request Web Identity token<br/>(for use_case_id)
+    IDP-->>ECS: 5. Return signed IdP token
+
+    ECS->>OIDC: 6. Exchange IdP token for OIDC token
+    OIDC-->>ECS: 7. Return OIDC token
+
+    ECS->>STS: 8. AssumeRoleWithWebIdentity<br/>(OIDC token + target role ARN)
+    STS->>IDP: 9. Validate token signature & claims
+    IDP-->>STS: 10. Token valid
+
+    STS-->>ECS: 11. Return temporary STS credentials<br/>(AccessKey, SecretKey, SessionToken)
+
+    ECS->>ECS: 12. Cache STS credentials in ElastiCache<br/>(TTL-based)
+
+    ECS->>SMA: 13. Invoke Bedrock model<br/>using temporary STS credentials
+    SMA-->>ECS: 14. Return model response
+
+    ECS-->>ALB: 15. Forward response
+    ALB-->>UC: 16. Return final model output
+```

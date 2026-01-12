@@ -1,20 +1,21 @@
 """
-RAG Agent Implementation.
+RAG Agent Implementation using Strands Agents SDK.
 
-Main agent class that orchestrates RAG operations using Google ADK patterns
-with AWS Bedrock services for LLM and knowledge retrieval.
+Main agent class that orchestrates RAG operations using Strands Agents
+with AWS Bedrock for LLM and knowledge retrieval.
 """
 
 import time
 from typing import Any, AsyncGenerator
 from uuid import uuid4
 
+import boto3
 import structlog
+from strands import Agent
+from strands.models import BedrockModel
 
 from rag_agent.config import Settings, get_settings
 from rag_agent.models import (
-    AgentAction,
-    AgentState,
     Conversation,
     ConversationMessage,
     QueryRequest,
@@ -26,103 +27,112 @@ from rag_agent.services.bedrock import BedrockService
 from rag_agent.services.dynamodb import DynamoDBService
 from rag_agent.services.embeddings import EmbeddingService
 from rag_agent.services.s3_vectors import S3VectorService
-from rag_agent.tools.base import Tool, ToolRegistry, ToolResult
+from rag_agent.tools import get_all_tools, get_core_tools
+from rag_agent.tools.base import ToolContext
 
 logger = structlog.get_logger(__name__)
 
 
 class RAGAgent:
     """
-    RAG (Retrieval-Augmented Generation) Agent.
+    RAG (Retrieval-Augmented Generation) Agent using Strands Agents SDK.
     
-    Implements an agentic RAG system following Google ADK patterns:
-    - Tool-based architecture for extensibility
-    - Multi-step reasoning with observation loops
-    - Context-aware response generation
-    - Conversation memory management
+    Implements an agentic RAG system with:
+    - Strands Agents SDK for tool orchestration
+    - AWS Bedrock for LLM operations
+    - S3/DynamoDB for storage
+    - Automatic tool selection and execution
     
-    Uses AWS Bedrock for LLM operations and S3/DynamoDB for storage.
+    The agent can:
+    - Search documents using semantic similarity
+    - Retrieve and summarize documents
+    - Query Bedrock Knowledge Bases
+    - Fetch web content when needed
     """
 
     def __init__(
         self,
         settings: Settings | None = None,
-        tools: list[Tool] | None = None,
+        include_web_tools: bool = True,
     ):
         """
         Initialize the RAG Agent.
         
         Args:
             settings: Application settings
-            tools: Optional list of tools to register
+            include_web_tools: Whether to include web search tools (default: True)
         """
         self.settings = settings or get_settings()
         
-        # Initialize services
+        # Initialize AWS services
         self.bedrock = BedrockService(self.settings)
         self.embeddings = EmbeddingService(self.settings)
         self.vectors = S3VectorService(self.settings)
         self.dynamodb = DynamoDBService(self.settings)
         
-        # Initialize tool registry
-        self.tools = ToolRegistry()
-        self._register_default_tools()
+        # Create boto3 session for Strands
+        self._boto_session = self._create_boto_session()
         
-        # Register additional tools
-        if tools:
-            for tool in tools:
-                self.tools.register(tool)
+        # Initialize Strands Bedrock model
+        self._model = self._create_bedrock_model()
+        
+        # Get tools
+        self._tools = get_all_tools() if include_web_tools else get_core_tools()
+        
+        # Filter out knowledge_base_search if KB not configured
+        if not self.settings.bedrock.knowledge_base_id:
+            from rag_agent.tools import knowledge_base_search
+            self._tools = [t for t in self._tools if t != knowledge_base_search]
+        
+        # Create Strands Agent
+        self._agent = self._create_agent()
         
         # Conversation memory
         self._conversations: dict[str, Conversation] = {}
         
         logger.info(
-            "RAG Agent initialized",
-            tools_count=len(self.tools),
+            "RAG Agent initialized with Strands SDK",
+            tools_count=len(self._tools),
             model=self.settings.bedrock.llm_model_id,
         )
 
-    def _register_default_tools(self) -> None:
-        """Register the default set of tools."""
-        from rag_agent.tools.search import VectorSearchTool, KnowledgeBaseSearchTool
-        from rag_agent.tools.document import (
-            DocumentRetrievalTool,
-            ListDocumentsTool,
-            DocumentSummaryTool,
+    def _create_boto_session(self) -> boto3.Session:
+        """Create a boto3 session with configured credentials."""
+        kwargs = {"region_name": self.settings.aws.region}
+        if self.settings.aws.access_key_id and self.settings.aws.secret_access_key:
+            kwargs["aws_access_key_id"] = self.settings.aws.access_key_id
+            kwargs["aws_secret_access_key"] = self.settings.aws.secret_access_key
+        return boto3.Session(**kwargs)
+
+    def _create_bedrock_model(self) -> BedrockModel:
+        """Create the Strands BedrockModel instance."""
+        return BedrockModel(
+            model_id=self.settings.bedrock.llm_model_id,
+            boto_session=self._boto_session,
+            temperature=self.settings.bedrock.temperature,
+            top_p=self.settings.bedrock.top_p,
+            max_tokens=self.settings.bedrock.max_tokens,
         )
-        from rag_agent.tools.web import WebSearchTool, URLContentTool
+
+    def _create_agent(self) -> Agent:
+        """Create the Strands Agent with tools and model."""
+        system_prompt = self._build_system_prompt()
         
-        # Core RAG tools
-        self.tools.register(VectorSearchTool(self.embeddings, self.vectors))
-        self.tools.register(DocumentRetrievalTool(self.dynamodb, self.vectors))
-        self.tools.register(ListDocumentsTool(self.dynamodb))
-        
-        # Optional tools
-        if self.settings.bedrock.knowledge_base_id:
-            self.tools.register(KnowledgeBaseSearchTool(self.bedrock))
-        
-        self.tools.register(DocumentSummaryTool(self.dynamodb, self.vectors))
-        self.tools.register(WebSearchTool())
-        self.tools.register(URLContentTool())
+        return Agent(
+            model=self._model,
+            tools=self._tools,
+            system_prompt=system_prompt,
+        )
 
     def _build_system_prompt(self) -> str:
         """Build the system prompt for the agent."""
-        tool_descriptions = "\n".join([
-            f"- {tool.name}: {tool.description}"
-            for tool in [self.tools.get(name) for name in self.tools.list_tools()]
-            if tool
-        ])
-        
-        return f"""You are a helpful AI assistant with access to a knowledge base and various tools.
+        return """You are a helpful AI assistant with access to a knowledge base and various tools.
 Your goal is to provide accurate, helpful responses based on the available information.
 
-## Available Tools
-{tool_descriptions}
-
 ## Guidelines
-1. Always search the knowledge base first for relevant information
+1. Always search the knowledge base first for relevant information using vector_search
 2. Cite your sources when providing information from the knowledge base
-3. If the knowledge base doesn't have relevant information, use web search
+3. If the knowledge base doesn't have relevant information, use web_search if available
 4. Be honest when you don't have enough information to answer
 5. Keep responses concise but comprehensive
 
@@ -132,6 +142,18 @@ When answering questions:
 - Provide supporting details from sources
 - Include source references for factual claims
 - Acknowledge uncertainty when appropriate
+- IMPORTANT: Do NOT simply repeat or echo back tool output verbatim. Instead, format and present the information in a natural, conversational way. The tool output is already visible to the user, so your response should add value by summarizing, organizing, or explaining the results.
+
+## Tool Usage
+- Use vector_search to find relevant documents by semantic similarity
+- Use get_document to retrieve full document details
+- Use list_documents to see available documents
+- Use summarize_document to get quick document overviews
+- Use knowledge_base_search for Bedrock Knowledge Base queries (if configured)
+- Use web_search for current/external information (if available)
+- Use fetch_url to read specific webpage content
+
+When tools return results, format them nicely rather than just repeating the raw output.
 """
 
     async def _retrieve_context(
@@ -172,6 +194,28 @@ When answering questions:
         
         return results
 
+    def __call__(self, message: str) -> str:
+        """
+        Send a message to the agent and get a response.
+        
+        This is the simplest interface - just call the agent like a function.
+        
+        Args:
+            message: User message
+            
+        Returns:
+            Agent response
+        """
+        # Set up tool context with services
+        with ToolContext(
+            embedding_service=self.embeddings,
+            vector_service=self.vectors,
+            dynamodb_service=self.dynamodb,
+            bedrock_service=self.bedrock,
+        ):
+            response = self._agent(message)
+            return str(response)
+
     async def query(
         self,
         request: QueryRequest,
@@ -180,7 +224,7 @@ When answering questions:
         """
         Process a RAG query.
         
-        Retrieves relevant context and generates a response using the LLM.
+        Retrieves relevant context and generates a response using the agent.
         
         Args:
             request: Query request with parameters
@@ -193,7 +237,7 @@ When answering questions:
         
         logger.info("Processing query", query=request.query[:100])
         
-        # Retrieve context
+        # Retrieve context for sources
         context = await self._retrieve_context(
             query=request.query,
             top_k=request.top_k,
@@ -215,30 +259,19 @@ When answering questions:
                 for msg in recent_messages
             ])
         
-        # Build prompt with context
-        context_str = ""
-        if context:
-            context_str = "## Relevant Context\n\n"
-            for i, result in enumerate(context, 1):
-                context_str += f"### Source {i} (Relevance: {result.score:.2%})\n"
-                context_str += f"{result.content}\n\n"
+        # Build enhanced prompt with history
+        enhanced_prompt = request.query
+        if history_context:
+            enhanced_prompt = f"Previous conversation:\n{history_context}\n\nCurrent question: {request.query}"
         
-        prompt = f"""{context_str}
-
-## Conversation History
-{history_context if history_context else "No previous conversation."}
-
-## Current Question
-{request.query}
-
-Please provide a helpful, accurate response based on the context above."""
-        
-        # Generate response
-        response = await self.bedrock.generate_text(
-            prompt=prompt,
-            system_prompt=self._build_system_prompt(),
-            context=context if not context_str else None,  # Already included in prompt
-        )
+        # Use the agent to generate response
+        with ToolContext(
+            embedding_service=self.embeddings,
+            vector_service=self.vectors,
+            dynamodb_service=self.dynamodb,
+            bedrock_service=self.bedrock,
+        ):
+            response_text = str(self._agent(enhanced_prompt))
         
         latency_ms = (time.time() - start_time) * 1000
         
@@ -262,7 +295,7 @@ Please provide a helpful, accurate response based on the context above."""
             await self._update_conversation(
                 conversation_id,
                 request.query,
-                response.get("content", ""),
+                response_text,
             )
         
         logger.info(
@@ -273,11 +306,11 @@ Please provide a helpful, accurate response based on the context above."""
         
         return QueryResponse(
             query=request.query,
-            answer=response.get("content", ""),
+            answer=response_text,
             sources=sources,
-            model_id=response.get("model_id", self.settings.bedrock.llm_model_id),
+            model_id=self.settings.bedrock.llm_model_id,
             latency_ms=latency_ms,
-            token_usage=response.get("token_usage", {}),
+            token_usage={},
         )
 
     async def chat(
@@ -328,143 +361,25 @@ Please provide a helpful, accurate response based on the context above."""
         except Exception as e:
             logger.warning("Failed to persist conversation", error=str(e))
 
-    async def execute_with_tools(
-        self,
-        query: str,
-        max_steps: int = 5,
-    ) -> AgentState:
+    def execute(self, query: str) -> str:
         """
-        Execute a query using the agent's tools.
+        Execute a query using the agent with tools.
         
-        Implements a ReAct-style loop where the agent can:
-        1. Think about what to do
-        2. Use a tool
-        3. Observe the result
-        4. Repeat or provide final answer
+        The Strands agent automatically handles tool selection and execution.
         
         Args:
             query: User query
-            max_steps: Maximum number of tool-use steps
             
         Returns:
-            Final agent state with actions and answer
+            Agent response after tool execution
         """
-        state = AgentState(query=query)
-        
-        # Build tool schemas for the LLM
-        tool_schemas = self.tools.get_function_schemas()
-        
-        for step in range(max_steps):
-            logger.info(f"Agent step {step + 1}/{max_steps}")
-            
-            # Build prompt with current state
-            actions_str = ""
-            if state.actions:
-                actions_str = "\n## Previous Actions\n"
-                for action in state.actions:
-                    actions_str += f"- Tool: {action.tool_name}\n"
-                    actions_str += f"  Input: {action.tool_input}\n"
-                    actions_str += f"  Result: {action.observation}\n\n"
-            
-            prompt = f"""## User Query
-{query}
-
-{actions_str}
-
-Based on the above, decide what to do next:
-1. If you have enough information, provide a final answer
-2. If you need more information, use one of the available tools
-
-Respond in this format:
-THOUGHT: <your reasoning>
-ACTION: <tool_name or "final_answer">
-ACTION_INPUT: <tool input as JSON or your final answer>
-"""
-            
-            response = await self.bedrock.generate_text(
-                prompt=prompt,
-                system_prompt=self._build_system_prompt(),
-            )
-            
-            content = response.get("content", "")
-            
-            # Parse the response
-            thought, action, action_input = self._parse_agent_response(content)
-            
-            if action == "final_answer":
-                state.final_answer = action_input
-                state.is_complete = True
-                break
-            
-            # Execute the tool
-            if action and action in self.tools:
-                try:
-                    import json
-                    tool_input = json.loads(action_input) if isinstance(action_input, str) else action_input
-                    result = await self.tools.execute(action, **tool_input)
-                    observation = str(result.data) if result.data else result.error
-                except Exception as e:
-                    observation = f"Error: {str(e)}"
-                
-                state.actions.append(
-                    AgentAction(
-                        action_type="tool_use",
-                        tool_name=action,
-                        tool_input=tool_input if isinstance(tool_input, dict) else {"raw": action_input},
-                        observation=observation,
-                    )
-                )
-            else:
-                # Invalid tool, record the error
-                state.actions.append(
-                    AgentAction(
-                        action_type="error",
-                        tool_name=action,
-                        observation=f"Tool '{action}' not found. Available: {self.tools.list_tools()}",
-                    )
-                )
-        
-        if not state.is_complete:
-            state.final_answer = "I was unable to complete the task within the allowed steps."
-            state.is_complete = True
-        
-        return state
-
-    def _parse_agent_response(
-        self,
-        response: str,
-    ) -> tuple[str | None, str | None, str | None]:
-        """
-        Parse the agent's response to extract thought, action, and input.
-        
-        Args:
-            response: Raw response from the LLM
-            
-        Returns:
-            Tuple of (thought, action, action_input)
-        """
-        import re
-        
-        thought = None
-        action = None
-        action_input = None
-        
-        # Extract THOUGHT
-        thought_match = re.search(r"THOUGHT:\s*(.+?)(?=ACTION:|$)", response, re.DOTALL)
-        if thought_match:
-            thought = thought_match.group(1).strip()
-        
-        # Extract ACTION
-        action_match = re.search(r"ACTION:\s*(\w+)", response)
-        if action_match:
-            action = action_match.group(1).strip()
-        
-        # Extract ACTION_INPUT
-        input_match = re.search(r"ACTION_INPUT:\s*(.+?)(?=THOUGHT:|ACTION:|$)", response, re.DOTALL)
-        if input_match:
-            action_input = input_match.group(1).strip()
-        
-        return thought, action, action_input
+        with ToolContext(
+            embedding_service=self.embeddings,
+            vector_service=self.vectors,
+            dynamodb_service=self.dynamodb,
+            bedrock_service=self.bedrock,
+        ):
+            return str(self._agent(query))
 
     async def stream_response(
         self,
@@ -473,7 +388,8 @@ ACTION_INPUT: <tool input as JSON or your final answer>
         """
         Stream a response for a query.
         
-        Yields response chunks as they're generated.
+        Note: Strands streaming support depends on the model.
+        Falls back to non-streaming if not available.
         
         Args:
             query: User query
@@ -481,39 +397,22 @@ ACTION_INPUT: <tool input as JSON or your final answer>
         Yields:
             Response chunks
         """
-        # Retrieve context first
-        context = await self._retrieve_context(query)
-        
-        prompt = f"""Context:
-{chr(10).join([r.content for r in context[:3]])}
-
-Question: {query}
-
-Please provide a helpful response based on the context above."""
-        
-        # Use Bedrock agent for streaming if available
-        if self.settings.bedrock.agent_id:
-            async for chunk in self.bedrock.invoke_agent(prompt):
-                yield chunk
-        else:
-            # Fall back to non-streaming
-            response = await self.bedrock.generate_text(
-                prompt=prompt,
-                system_prompt=self._build_system_prompt(),
-            )
-            yield response.get("content", "")
-
-    def register_tool(self, tool: Tool) -> None:
-        """
-        Register a new tool with the agent.
-        
-        Args:
-            tool: Tool to register
-        """
-        self.tools.register(tool)
-        logger.info("Tool registered", tool_name=tool.name)
+        # For now, yield the full response
+        # Strands streaming API can be integrated when available
+        with ToolContext(
+            embedding_service=self.embeddings,
+            vector_service=self.vectors,
+            dynamodb_service=self.dynamodb,
+            bedrock_service=self.bedrock,
+        ):
+            response = str(self._agent(query))
+            yield response
 
     def list_tools(self) -> list[str]:
-        """Return list of registered tool names."""
-        return self.tools.list_tools()
+        """Return list of available tool names."""
+        return [t.__name__ for t in self._tools]
 
+    @property
+    def model_id(self) -> str:
+        """Return the configured model ID."""
+        return self.settings.bedrock.llm_model_id

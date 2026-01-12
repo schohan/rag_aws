@@ -1,15 +1,18 @@
 """
-Base Tool definitions following Google ADK patterns.
+Base Tool utilities for Strands Agents SDK integration.
 
-Provides abstract base classes and registries for agent tools.
+Provides helper classes and context management for tools that need
+access to AWS services.
 """
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, TypeVar, Generic
+from typing import Any
 from enum import Enum
+from contextvars import ContextVar
 
-from pydantic import BaseModel, Field
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class ToolResultStatus(str, Enum):
@@ -22,7 +25,12 @@ class ToolResultStatus(str, Enum):
 
 @dataclass
 class ToolResult:
-    """Result of a tool execution."""
+    """
+    Result container for tool executions.
+    
+    Provides a standardized way to return results from tools,
+    including success/error states and metadata.
+    """
 
     status: ToolResultStatus
     data: Any
@@ -54,249 +62,177 @@ class ToolResult:
             metadata=metadata,
         )
 
-
-class ToolParameter(BaseModel):
-    """Definition of a tool parameter."""
-
-    name: str
-    description: str
-    type: str = "string"
-    required: bool = True
-    default: Any = None
-    enum: list[str] | None = None
-
-
-class ToolDefinition(BaseModel):
-    """Schema definition for a tool."""
-
-    name: str = Field(..., description="Unique tool name")
-    description: str = Field(..., description="What the tool does")
-    parameters: list[ToolParameter] = Field(
-        default_factory=list,
-        description="Tool parameters",
-    )
-    returns: str = Field(
-        default="ToolResult",
-        description="Return type description",
-    )
-    examples: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Usage examples",
-    )
-
-    def to_function_schema(self) -> dict[str, Any]:
-        """Convert to OpenAI function calling schema format."""
-        properties = {}
-        required = []
-
-        for param in self.parameters:
-            param_schema = {"type": param.type, "description": param.description}
-            if param.enum:
-                param_schema["enum"] = param.enum
-            properties[param.name] = param_schema
-
-            if param.required:
-                required.append(param.name)
-
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
         return {
-            "name": self.name,
-            "description": self.description,
-            "parameters": {
-                "type": "object",
-                "properties": properties,
-                "required": required,
-            },
+            "status": self.status.value,
+            "data": self.data,
+            "error": self.error,
+            "metadata": self.metadata,
         }
 
 
-class Tool(ABC):
+# Context variables for service injection into tools
+_embedding_service: ContextVar[Any] = ContextVar("embedding_service", default=None)
+_vector_service: ContextVar[Any] = ContextVar("vector_service", default=None)
+_dynamodb_service: ContextVar[Any] = ContextVar("dynamodb_service", default=None)
+_bedrock_service: ContextVar[Any] = ContextVar("bedrock_service", default=None)
+
+
+class ToolContext:
     """
-    Abstract base class for agent tools.
+    Context manager for injecting services into tools.
     
-    Follows Google ADK patterns for tool definition and execution.
-    Tools are callable components that the agent can use to perform
-    specific actions during reasoning.
-    """
-
-    @property
-    @abstractmethod
-    def definition(self) -> ToolDefinition:
-        """Return the tool definition schema."""
-        pass
-
-    @property
-    def name(self) -> str:
-        """Return the tool name."""
-        return self.definition.name
-
-    @property
-    def description(self) -> str:
-        """Return the tool description."""
-        return self.definition.description
-
-    @abstractmethod
-    async def execute(self, **kwargs: Any) -> ToolResult:
-        """
-        Execute the tool with the given parameters.
-        
-        Args:
-            **kwargs: Tool parameters
-            
-        Returns:
-            ToolResult with execution outcome
-        """
-        pass
-
-    async def __call__(self, **kwargs: Any) -> ToolResult:
-        """Make the tool callable."""
-        return await self.execute(**kwargs)
-
-    def validate_params(self, **kwargs: Any) -> tuple[bool, str | None]:
-        """
-        Validate parameters against the tool definition.
-        
-        Args:
-            **kwargs: Parameters to validate
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        for param in self.definition.parameters:
-            if param.required and param.name not in kwargs:
-                return False, f"Missing required parameter: {param.name}"
-
-            if param.name in kwargs and param.enum:
-                if kwargs[param.name] not in param.enum:
-                    return False, f"Invalid value for {param.name}. Must be one of: {param.enum}"
-
-        return True, None
-
-
-class ToolRegistry:
-    """
-    Registry for managing available tools.
+    Strands tools are simple functions, so we use context variables
+    to provide access to AWS services without global state.
     
-    Provides tool discovery, registration, and retrieval for the agent.
+    Example:
+        with ToolContext(embedding_service=emb, vector_service=vec):
+            result = agent("Search for documents about Python")
     """
 
-    def __init__(self):
-        """Initialize the tool registry."""
-        self._tools: dict[str, Tool] = {}
+    def __init__(
+        self,
+        embedding_service: Any = None,
+        vector_service: Any = None,
+        dynamodb_service: Any = None,
+        bedrock_service: Any = None,
+    ):
+        self.embedding_service = embedding_service
+        self.vector_service = vector_service
+        self.dynamodb_service = dynamodb_service
+        self.bedrock_service = bedrock_service
+        self._tokens: list[Any] = []
 
-    def register(self, tool: Tool) -> None:
-        """
-        Register a tool.
-        
-        Args:
-            tool: Tool instance to register
-        """
-        self._tools[tool.name] = tool
+    def __enter__(self) -> "ToolContext":
+        if self.embedding_service:
+            self._tokens.append(_embedding_service.set(self.embedding_service))
+        if self.vector_service:
+            self._tokens.append(_vector_service.set(self.vector_service))
+        if self.dynamodb_service:
+            self._tokens.append(_dynamodb_service.set(self.dynamodb_service))
+        if self.bedrock_service:
+            self._tokens.append(_bedrock_service.set(self.bedrock_service))
+        return self
 
-    def unregister(self, name: str) -> bool:
-        """
-        Unregister a tool by name.
-        
-        Args:
-            name: Tool name to unregister
-            
-        Returns:
-            True if tool was removed, False if not found
-        """
-        if name in self._tools:
-            del self._tools[name]
-            return True
-        return False
-
-    def get(self, name: str) -> Tool | None:
-        """
-        Get a tool by name.
-        
-        Args:
-            name: Tool name
-            
-        Returns:
-            Tool instance or None if not found
-        """
-        return self._tools.get(name)
-
-    def list_tools(self) -> list[str]:
-        """Return list of registered tool names."""
-        return list(self._tools.keys())
-
-    def get_all_definitions(self) -> list[ToolDefinition]:
-        """Return definitions for all registered tools."""
-        return [tool.definition for tool in self._tools.values()]
-
-    def get_function_schemas(self) -> list[dict[str, Any]]:
-        """Return function schemas for all tools (for LLM function calling)."""
-        return [tool.definition.to_function_schema() for tool in self._tools.values()]
-
-    async def execute(self, name: str, **kwargs: Any) -> ToolResult:
-        """
-        Execute a tool by name.
-        
-        Args:
-            name: Tool name
-            **kwargs: Tool parameters
-            
-        Returns:
-            ToolResult from execution
-        """
-        tool = self.get(name)
-        if not tool:
-            return ToolResult.error(f"Tool not found: {name}")
-
-        # Validate parameters
-        is_valid, error = tool.validate_params(**kwargs)
-        if not is_valid:
-            return ToolResult.error(error or "Invalid parameters")
-
-        return await tool.execute(**kwargs)
-
-    def __len__(self) -> int:
-        """Return number of registered tools."""
-        return len(self._tools)
-
-    def __contains__(self, name: str) -> bool:
-        """Check if a tool is registered."""
-        return name in self._tools
+    def __exit__(self, *args: Any) -> None:
+        for token in self._tokens:
+            # Reset context variables
+            pass  # ContextVar tokens auto-reset on context exit
 
 
-def tool(
-    name: str,
-    description: str,
-    parameters: list[ToolParameter] | None = None,
-) -> Callable[[Callable], Tool]:
+def get_embedding_service() -> Any:
+    """Get the embedding service from context."""
+    service = _embedding_service.get()
+    if service is None:
+        from rag_agent.services.embeddings import EmbeddingService
+        return EmbeddingService()
+    return service
+
+
+def get_vector_service() -> Any:
+    """Get the vector service from context."""
+    service = _vector_service.get()
+    if service is None:
+        from rag_agent.services.s3_vectors import S3VectorService
+        return S3VectorService()
+    return service
+
+
+def get_dynamodb_service() -> Any:
+    """Get the DynamoDB service from context."""
+    service = _dynamodb_service.get()
+    if service is None:
+        from rag_agent.services.dynamodb import DynamoDBService
+        return DynamoDBService()
+    return service
+
+
+def get_bedrock_service() -> Any:
+    """Get the Bedrock service from context."""
+    service = _bedrock_service.get()
+    if service is None:
+        from rag_agent.services.bedrock import BedrockService
+        return BedrockService()
+    return service
+
+
+def format_search_results(results: list[Any]) -> str:
     """
-    Decorator to create a tool from a function.
+    Format search results for agent consumption.
     
     Args:
-        name: Tool name
-        description: Tool description
-        parameters: Optional parameter definitions
+        results: List of VectorSearchResult objects
         
     Returns:
-        Decorator that creates a Tool from a function
+        Formatted string representation
     """
+    if not results:
+        return "No results found."
+    
+    formatted = []
+    for i, r in enumerate(results, 1):
+        formatted.append(
+            f"[Result {i}] Score: {r.score:.4f}\n"
+            f"Document: {r.document_id}\n"
+            f"Content: {r.content[:500]}{'...' if len(r.content) > 500 else ''}\n"
+        )
+    return "\n".join(formatted)
 
-    def decorator(func: Callable) -> Tool:
-        class FunctionTool(Tool):
-            @property
-            def definition(self) -> ToolDefinition:
-                return ToolDefinition(
-                    name=name,
-                    description=description,
-                    parameters=parameters or [],
-                )
 
-            async def execute(self, **kwargs: Any) -> ToolResult:
+def format_document_list(documents: list[Any]) -> str:
+    """
+    Format document list for agent consumption.
+    
+    Args:
+        documents: List of document metadata objects
+        
+    Returns:
+        Formatted string representation
+    """
+    if not documents:
+        return "No documents found."
+    
+    formatted = []
+    for doc in documents:
+        formatted.append(
+            f"- {doc.title} (ID: {doc.id}, Status: {doc.status.value}, Chunks: {doc.chunk_count})"
+        )
+    return "\n".join(formatted)
+
+
+def run_async_sync(coro):
+    """
+    Run async code synchronously in a thread-safe way.
+    
+    This helper is needed because Strands tools are synchronous functions
+    but our services use async methods. This function handles event loop
+    creation and management safely.
+    
+    Args:
+        coro: Async coroutine to run
+        
+    Returns:
+        Result of the coroutine
+    """
+    import asyncio
+    import concurrent.futures
+    
+    try:
+        # Try to get existing loop
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is running, create new loop in thread
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
                 try:
-                    result = await func(**kwargs)
-                    return ToolResult.success(result)
-                except Exception as e:
-                    return ToolResult.error(str(e))
-
-        return FunctionTool()
-
-    return decorator
-
+                    return new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+        else:
+            # Use existing loop
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        # No event loop, create new one
+        return asyncio.run(coro)

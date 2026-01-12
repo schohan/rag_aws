@@ -104,7 +104,7 @@ class VectorSettings(BaseSettings):
     dimension: int = Field(default=1024, description="Vector dimension")
     top_k: int = Field(default=5, alias="TOP_K_RESULTS", description="Number of results to return")
     similarity_threshold: float = Field(
-        default=0.7,
+        default=0.5,
         description="Minimum similarity threshold",
     )
 

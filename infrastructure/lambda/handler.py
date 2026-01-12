@@ -19,3 +19,4 @@ from rag_agent.api import app
 # Create the Lambda handler
 handler = Mangum(app, lifespan="off")
 
+

@@ -181,8 +181,21 @@ async def setup_infrastructure():
     except Exception as e:
         logger.error("Failed to create DynamoDB table", error=str(e))
     
-    # Create S3 vector index
+    # Create regular S3 bucket for document storage
     s3_vectors = S3VectorService()
+    try:
+        await s3_vectors.create_s3_bucket()
+        logger.info("S3 bucket created or already exists")
+    except Exception as e:
+        logger.warning("Failed to create S3 bucket", error=str(e))
+    
+    # Create S3 vector bucket and index
+    try:
+        await s3_vectors.create_vector_bucket()
+        logger.info("S3 vector bucket created or already exists")
+    except Exception as e:
+        logger.warning("Failed to create S3 vector bucket", error=str(e))
+    
     try:
         await s3_vectors.create_vector_index()
         logger.info("S3 vector index created")

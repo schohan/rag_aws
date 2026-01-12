@@ -57,10 +57,74 @@ class S3VectorService:
             self._s3_vectors_client = boto3.client("s3vectors", **self._get_boto_kwargs())
         return self._s3_vectors_client
 
+    async def create_s3_bucket(self) -> dict[str, Any]:
+        """
+        Create the regular S3 bucket for document storage.
+        
+        This is separate from the vector bucket and is used for storing
+        document content files.
+        
+        Returns:
+            Bucket creation response
+        """
+        try:
+            # Check if bucket exists
+            try:
+                self.s3_client.head_bucket(Bucket=self.settings.s3.bucket_name)
+                logger.info("S3 bucket already exists", bucket_name=self.settings.s3.bucket_name)
+                return {"status": "exists", "bucketName": self.settings.s3.bucket_name}
+            except ClientError as e:
+                if e.response["Error"]["Code"] != "404":
+                    raise
+            
+            # Create bucket if it doesn't exist
+            create_kwargs = {"Bucket": self.settings.s3.bucket_name}
+            
+            # Set region for bucket creation
+            if self.settings.aws.region != "us-east-1":
+                create_kwargs["CreateBucketConfiguration"] = {
+                    "LocationConstraint": self.settings.aws.region
+                }
+            
+            self.s3_client.create_bucket(**create_kwargs)
+            logger.info("S3 bucket created", bucket_name=self.settings.s3.bucket_name)
+            return {"status": "created", "bucketName": self.settings.s3.bucket_name}
+            
+        except ClientError as e:
+            if e.response["Error"]["Code"] in ("BucketAlreadyExists", "BucketAlreadyOwnedByYou"):
+                logger.info("S3 bucket already exists", bucket_name=self.settings.s3.bucket_name)
+                return {"status": "exists", "bucketName": self.settings.s3.bucket_name}
+            raise
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    async def create_vector_bucket(self) -> dict[str, Any]:
+        """
+        Create a vector bucket in S3 Vectors.
+        
+        The vector bucket must exist before creating an index.
+        This is separate from the regular S3 bucket.
+        
+        Returns:
+            Bucket creation response
+        """
+        try:
+            response = self.s3_vectors_client.create_vector_bucket(
+                vectorBucketName=self.settings.s3.bucket_name,
+            )
+            logger.info("Vector bucket created", bucket_name=self.settings.s3.bucket_name)
+            return response
+        except ClientError as e:
+            if e.response["Error"]["Code"] in ("BucketAlreadyExists", "ConflictException"):
+                logger.info("Vector bucket already exists", bucket_name=self.settings.s3.bucket_name)
+                return {"status": "exists", "bucketName": self.settings.s3.bucket_name}
+            raise
+
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     async def create_vector_index(self, index_name: str | None = None) -> dict[str, Any]:
         """
         Create a vector index in S3 Vectors.
+        
+        The vector bucket must exist before creating an index.
         
         Args:
             index_name: Name for the vector index
@@ -70,17 +134,24 @@ class S3VectorService:
         """
         index_name = index_name or self.settings.s3.vector_index_name
         
+        # Ensure vector bucket exists first
+        try:
+            await self.create_vector_bucket()
+        except Exception as e:
+            logger.warning("Could not ensure vector bucket exists", error=str(e))
+        
         try:
             response = self.s3_vectors_client.create_index(
                 vectorBucketName=self.settings.s3.bucket_name,
                 indexName=index_name,
+                dataType="float32",  # Required parameter for S3 Vectors
                 dimension=self.settings.vector.dimension,
                 distanceMetric="cosine",
             )
             logger.info("Vector index created", index_name=index_name)
             return response
         except ClientError as e:
-            if e.response["Error"]["Code"] == "IndexAlreadyExists":
+            if e.response["Error"]["Code"] in ("IndexAlreadyExists", "ConflictException"):
                 logger.info("Vector index already exists", index_name=index_name)
                 return {"status": "exists", "indexName": index_name}
             raise
@@ -111,10 +182,11 @@ class S3VectorService:
                 )
                 continue
                 
+            # S3 Vectors API expects float32 directly in data field
             vector_data = {
                 "key": str(chunk.metadata.chunk_id),
                 "data": {
-                    "vector": chunk.embedding,
+                    "float32": chunk.embedding,
                 },
                 "metadata": {
                     "document_id": str(document_id),
@@ -174,10 +246,11 @@ class S3VectorService:
         top_k = top_k or self.settings.vector.top_k
         
         try:
+            # S3 Vectors API expects queryVector with "float32" key
             search_params = {
                 "vectorBucketName": self.settings.s3.bucket_name,
                 "indexName": self.settings.s3.vector_index_name,
-                "queryVector": query_vector,
+                "queryVector": {"float32": query_vector},
                 "topK": top_k,
             }
             
@@ -186,12 +259,29 @@ class S3VectorService:
 
             response = self.s3_vectors_client.query_vectors(**search_params)
             
+            all_matches = response.get("matches", [])
+            logger.info(
+                "Vector search API response",
+                total_matches=len(all_matches),
+                threshold=self.settings.vector.similarity_threshold,
+            )
+            
             results = []
-            for match in response.get("matches", []):
+            filtered_count = 0
+            for match in all_matches:
                 score = match.get("score", 0.0)
+                
+                # Log all scores for debugging
+                logger.debug(
+                    "Match score",
+                    score=score,
+                    threshold=self.settings.vector.similarity_threshold,
+                    above_threshold=score >= self.settings.vector.similarity_threshold,
+                )
                 
                 # Filter by similarity threshold
                 if score < self.settings.vector.similarity_threshold:
+                    filtered_count += 1
                     continue
                     
                 metadata = match.get("metadata", {})
@@ -208,8 +298,31 @@ class S3VectorService:
             logger.info(
                 "Vector search completed",
                 results_count=len(results),
+                filtered_count=filtered_count,
+                total_matches=len(all_matches),
                 top_k=top_k,
+                threshold=self.settings.vector.similarity_threshold,
             )
+            
+            # If no results but we have matches, log warning and return top results anyway
+            if len(results) == 0 and len(all_matches) > 0:
+                logger.warning(
+                    "All results filtered by threshold, returning top match anyway",
+                    top_score=all_matches[0].get("score", 0.0) if all_matches else 0.0,
+                    threshold=self.settings.vector.similarity_threshold,
+                )
+                # Return at least the top match even if below threshold
+                top_match = all_matches[0]
+                metadata = top_match.get("metadata", {})
+                results.append(
+                    VectorSearchResult(
+                        document_id=metadata.get("document_id", ""),
+                        chunk_id=top_match.get("key", ""),
+                        score=top_match.get("score", 0.0),
+                        content=metadata.get("content", ""),
+                        metadata=metadata,
+                    )
+                )
             return results
             
         except ClientError as e:

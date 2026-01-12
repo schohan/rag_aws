@@ -129,6 +129,9 @@ rag-agent server --host 0.0.0.0 --port 8080
 ### CLI Commands
 
 ```bash
+# Set up infrastructure (onetime only.create buckets, etc)
+rag-agent setup
+
 # Start API server
 rag-agent server
 
@@ -144,8 +147,9 @@ rag-agent ingest document.txt --title "My Document"
 # Ingest directory
 rag-agent ingest-dir ./documents --pattern "*.md"
 
-# Set up infrastructure
-rag-agent setup
+# list all documents
+rag-agent query "list all documents"
+
 ```
 
 ### API Endpoints

@@ -1,239 +1,134 @@
 """
-Vector Search Tool for RAG operations.
+Vector Search Tools for RAG operations.
 
 Provides semantic search capabilities using S3 Vectors or Bedrock Knowledge Bases.
+Uses Strands Agents SDK @tool decorator for tool definition.
 """
 
-from typing import Any
-
 import structlog
+from strands import tool
 
 from rag_agent.config import get_settings
-from rag_agent.services.embeddings import EmbeddingService
-from rag_agent.services.s3_vectors import S3VectorService
-from rag_agent.services.bedrock import BedrockService
-from rag_agent.tools.base import Tool, ToolDefinition, ToolParameter, ToolResult
+from rag_agent.tools.base import (
+    get_embedding_service,
+    get_vector_service,
+    get_bedrock_service,
+    format_search_results,
+    run_async_sync,
+)
 
 logger = structlog.get_logger(__name__)
 
 
-class VectorSearchTool(Tool):
+@tool
+def vector_search(
+    query: str,
+    top_k: int = 5,
+    filter_document_id: str | None = None,
+) -> str:
     """
-    Tool for performing semantic vector search.
+    Search for relevant documents in the knowledge base using semantic similarity.
     
-    Searches the vector store for documents similar to the query
-    using embedding-based similarity.
-    """
-
-    def __init__(
-        self,
-        embedding_service: EmbeddingService | None = None,
-        vector_service: S3VectorService | None = None,
-    ):
-        """Initialize the vector search tool."""
-        self.settings = get_settings()
-        self.embedding_service = embedding_service or EmbeddingService()
-        self.vector_service = vector_service or S3VectorService()
-
-    @property
-    def definition(self) -> ToolDefinition:
-        """Return the tool definition."""
-        return ToolDefinition(
-            name="vector_search",
-            description=(
-                "Search for relevant documents in the knowledge base using semantic similarity. "
-                "Use this tool when you need to find information related to a specific topic or question."
-            ),
-            parameters=[
-                ToolParameter(
-                    name="query",
-                    description="The search query to find relevant documents",
-                    type="string",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="top_k",
-                    description="Number of results to return (default: 5)",
-                    type="integer",
-                    required=False,
-                    default=5,
-                ),
-                ToolParameter(
-                    name="filter_document_id",
-                    description="Optional document ID to filter results",
-                    type="string",
-                    required=False,
-                ),
-            ],
-            returns="List of relevant document chunks with similarity scores",
-            examples=[
-                {
-                    "query": "What is the company's refund policy?",
-                    "top_k": 3,
-                },
-                {
-                    "query": "How do I reset my password?",
-                },
-            ],
-        )
-
-    async def execute(self, **kwargs: Any) -> ToolResult:
-        """
-        Execute the vector search.
+    Use this tool when you need to find information related to a specific topic or question.
+    It performs embedding-based similarity search across all indexed documents.
+    
+    Args:
+        query: The search query to find relevant documents
+        top_k: Number of results to return (default: 5)
+        filter_document_id: Optional document ID to filter results to a specific document
         
-        Args:
-            query: Search query string
-            top_k: Number of results to return
-            filter_document_id: Optional document filter
-            
-        Returns:
-            ToolResult with search results
-        """
-        query = kwargs.get("query")
-        if not query:
-            return ToolResult.error("Query parameter is required")
-
-        top_k = kwargs.get("top_k", self.settings.vector.top_k)
-        filter_document_id = kwargs.get("filter_document_id")
-
-        try:
-            # Generate query embedding
-            logger.info("Generating query embedding", query=query[:100])
-            query_embedding = await self.embedding_service.generate_query_embedding(query)
-
-            if not query_embedding:
-                return ToolResult.error("Failed to generate query embedding")
-
-            # Build filters if specified
-            filters = None
-            if filter_document_id:
-                filters = {"document_id": filter_document_id}
-
-            # Perform vector search
-            logger.info("Performing vector search", top_k=top_k)
-            results = await self.vector_service.search_vectors(
+    Returns:
+        Formatted list of relevant document chunks with similarity scores
+    """
+    settings = get_settings()
+    embedding_service = get_embedding_service()
+    vector_service = get_vector_service()
+    
+    top_k = top_k or settings.vector.top_k
+    
+    try:
+        logger.info("Generating query embedding", query=query[:100])
+        
+        # Run async code synchronously (Strands tools are sync)
+        query_embedding = run_async_sync(embedding_service.generate_query_embedding(query))
+        
+        if not query_embedding:
+            return "Error: Failed to generate query embedding"
+        
+        # Build filters if specified
+        filters = None
+        if filter_document_id:
+            filters = {"document_id": filter_document_id}
+        
+        logger.info("Performing vector search", top_k=top_k)
+        
+        # Perform vector search
+        results = run_async_sync(
+            vector_service.search_vectors(
                 query_vector=query_embedding,
                 top_k=top_k,
                 filters=filters,
             )
-
-            # Format results for agent consumption
-            formatted_results = [
-                {
-                    "document_id": r.document_id,
-                    "chunk_id": r.chunk_id,
-                    "score": round(r.score, 4),
-                    "content": r.content,
-                    "metadata": r.metadata,
-                }
-                for r in results
-            ]
-
-            logger.info("Vector search completed", results_count=len(formatted_results))
-
-            return ToolResult.success(
-                data=formatted_results,
-                query=query,
-                results_count=len(formatted_results),
-            )
-
-        except Exception as e:
-            logger.error("Vector search failed", error=str(e))
-            return ToolResult.error(f"Vector search failed: {str(e)}")
-
-
-class KnowledgeBaseSearchTool(Tool):
-    """
-    Tool for searching Bedrock Knowledge Bases.
-    
-    Uses Amazon Bedrock's managed knowledge base for retrieval.
-    """
-
-    def __init__(self, bedrock_service: BedrockService | None = None):
-        """Initialize the knowledge base search tool."""
-        self.settings = get_settings()
-        self.bedrock_service = bedrock_service or BedrockService()
-
-    @property
-    def definition(self) -> ToolDefinition:
-        """Return the tool definition."""
-        return ToolDefinition(
-            name="knowledge_base_search",
-            description=(
-                "Search the managed knowledge base for relevant information. "
-                "Use this tool when you need authoritative answers from the document repository."
-            ),
-            parameters=[
-                ToolParameter(
-                    name="query",
-                    description="The question or topic to search for",
-                    type="string",
-                    required=True,
-                ),
-                ToolParameter(
-                    name="top_k",
-                    description="Number of results to return (default: 5)",
-                    type="integer",
-                    required=False,
-                    default=5,
-                ),
-            ],
-            returns="Relevant passages from the knowledge base with source information",
-            examples=[
-                {
-                    "query": "What are the system requirements?",
-                    "top_k": 5,
-                },
-            ],
         )
-
-    async def execute(self, **kwargs: Any) -> ToolResult:
-        """
-        Execute the knowledge base search.
         
-        Args:
-            query: Search query string
-            top_k: Number of results to return
-            
-        Returns:
-            ToolResult with search results
-        """
-        query = kwargs.get("query")
-        if not query:
-            return ToolResult.error("Query parameter is required")
-
-        top_k = kwargs.get("top_k", self.settings.vector.top_k)
-
-        if not self.settings.bedrock.knowledge_base_id:
-            return ToolResult.error("Knowledge base ID not configured")
-
-        try:
-            logger.info("Querying knowledge base", query=query[:100])
-            results = await self.bedrock_service.query_knowledge_base(
-                query=query,
-                top_k=top_k,
+        logger.info(
+            "Vector search completed",
+            results_count=len(results),
+            query=query[:100],
+        )
+        
+        if not results:
+            return (
+                "No results found matching the query. "
+                "This could mean:\n"
+                "- No documents have been indexed yet\n"
+                "- The query doesn't match any indexed content\n"
+                "- Try rephrasing your query or checking if documents were successfully ingested"
             )
+        
+        return format_search_results(results)
+        
+    except Exception as e:
+        logger.error("Vector search failed", error=str(e))
+        return f"Error: Vector search failed - {str(e)}"
 
-            formatted_results = [
-                {
-                    "document_id": r.document_id,
-                    "chunk_id": r.chunk_id,
-                    "score": round(r.score, 4),
-                    "content": r.content,
-                    "metadata": r.metadata,
-                }
-                for r in results
-            ]
 
-            logger.info("Knowledge base search completed", results_count=len(formatted_results))
-
-            return ToolResult.success(
-                data=formatted_results,
-                query=query,
-                results_count=len(formatted_results),
-            )
-
-        except Exception as e:
-            logger.error("Knowledge base search failed", error=str(e))
-            return ToolResult.error(f"Knowledge base search failed: {str(e)}")
-
+@tool
+def knowledge_base_search(
+    query: str,
+    top_k: int = 5,
+) -> str:
+    """
+    Search the managed Bedrock Knowledge Base for relevant information.
+    
+    Use this tool when you need authoritative answers from the document repository.
+    This uses Amazon Bedrock's managed knowledge base for optimized retrieval.
+    
+    Args:
+        query: The question or topic to search for
+        top_k: Number of results to return (default: 5)
+        
+    Returns:
+        Relevant passages from the knowledge base with source information
+    """
+    settings = get_settings()
+    bedrock_service = get_bedrock_service()
+    
+    if not settings.bedrock.knowledge_base_id:
+        return "Error: Knowledge base ID not configured"
+    
+    top_k = top_k or settings.vector.top_k
+    
+    try:
+        logger.info("Querying knowledge base", query=query[:100])
+        
+        # Run async code synchronously
+        results = run_async_sync(bedrock_service.query_knowledge_base(query=query, top_k=top_k))
+        
+        logger.info("Knowledge base search completed", results_count=len(results))
+        
+        return format_search_results(results)
+        
+    except Exception as e:
+        logger.error("Knowledge base search failed", error=str(e))
+        return f"Error: Knowledge base search failed - {str(e)}"
