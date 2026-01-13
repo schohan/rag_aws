@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""
+CDK Teardown Command - Opposite of 'cdk bootstrap'.
+
+This script provides a unified way to tear down CDK infrastructure:
+1. Destroys application stacks (using standard 'cdk destroy')
+2. Optionally removes bootstrap stack
+
+Usage:
+    ./cdk-teardown [--all] [--bootstrap] [--environment ENV] [--force] [--wait]
+    python cdk-teardown [options]
+
+This follows CDK best practices:
+- Uses 'cdk destroy' for application stacks (standard CDK command)
+- Handles bootstrap separately (as it's a special case)
+- Provides automatic cleanup of resources before deletion
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+# Add parent directory to path to import stack module
+sys.path.insert(0, str(Path(__file__).parent))
+
+from stack import (
+    list_application_stacks,
+    list_all_bootstrap_stacks,
+    remove_application_stacks,
+    remove_bootstrap_stack,
+)
+
+
+def run_cdk_destroy(environment: str = None, force: bool = False) -> bool:
+    """
+    Run standard CDK destroy command.
+    
+    This uses the official CDK command, which is the best practice.
+    CDK destroy handles application stacks (RAGAgentStack-*, RAGAgentLambdaStack-*).
+    """
+    # CDK destroy works with stack names or --all
+    if environment:
+        # Destroy both stacks for the environment
+        stacks = [
+            f"RAGAgentStack-{environment}",
+            f"RAGAgentLambdaStack-{environment}",
+        ]
+        cmd = ["cdk", "destroy"] + stacks
+    else:
+        # Destroy all stacks
+        cmd = ["cdk", "destroy", "--all"]
+    
+    if force:
+        cmd.append("--force")
+    
+    print(f"Running: {' '.join(cmd)}")
+    print("=" * 60)
+    print("Using standard 'cdk destroy' command (CDK best practice)")
+    print("")
+    
+    try:
+        result = subprocess.run(cmd, check=True, cwd=Path(__file__).parent)
+        return result.returncode == 0
+    except subprocess.CalledProcessError as e:
+        print(f"Error: CDK destroy failed with exit code {e.returncode}", file=sys.stderr)
+        return False
+    except FileNotFoundError:
+        print("Error: 'cdk' command not found. Make sure AWS CDK is installed.", file=sys.stderr)
+        print("Install with: npm install -g aws-cdk", file=sys.stderr)
+        return False
+
+
+def main():
+    """Main teardown command entry point."""
+    parser = argparse.ArgumentParser(
+        description="CDK Teardown - Remove CDK infrastructure (opposite of 'cdk bootstrap')",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Teardown all application stacks (standard CDK destroy)
+  ./cdk-teardown --all
+  
+  # Teardown specific environment
+  ./cdk-teardown --environment dev
+  
+  # Teardown application stacks and bootstrap
+  ./cdk-teardown --all --bootstrap
+  
+  # Teardown with automatic resource cleanup
+  ./cdk-teardown --all --cleanup
+  
+  # Teardown without confirmation
+  ./cdk-teardown --all --force
+
+Note: This command uses 'cdk destroy' for application stacks (CDK best practice)
+      and handles bootstrap separately as it requires special cleanup.
+        """,
+    )
+    
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Remove all application stacks (uses 'cdk destroy --all')",
+    )
+    parser.add_argument(
+        "--environment",
+        type=str,
+        help="Environment to remove (e.g., dev, prod). If not specified with --all, removes all.",
+    )
+    parser.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="Also remove CDK bootstrap stack (CDKToolkit)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip confirmation prompts",
+    )
+    parser.add_argument(
+        "--wait",
+        action="store_true",
+        help="Wait for stack deletion to complete",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        default=True,
+        help="Automatically empty S3 buckets and ECR repositories (default: True)",
+    )
+    parser.add_argument(
+        "--no-cleanup",
+        dest="cleanup",
+        action="store_false",
+        help="Skip automatic cleanup of resources",
+    )
+    parser.add_argument(
+        "--region",
+        type=str,
+        help="AWS region (defaults to CDK_DEFAULT_REGION or us-east-1)",
+    )
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List stacks that would be removed (dry run)",
+    )
+    
+    args = parser.parse_args()
+    
+    region = args.region or os.environ.get("CDK_DEFAULT_REGION", "us-east-1")
+    
+    # List mode - show what would be removed
+    if args.list:
+        print("=" * 60)
+        print("Stacks that would be removed:")
+        print("=" * 60)
+        
+        # List application stacks
+        app_stacks = list_application_stacks(region=region, environment=args.environment)
+        if app_stacks:
+            print("\nApplication Stacks:")
+            for stack in app_stacks:
+                print(f"  - {stack['StackName']} ({stack['StackStatus']})")
+        else:
+            print("\nNo application stacks found.")
+        
+        # List bootstrap stacks
+        if args.bootstrap:
+            bootstrap_stacks = list_all_bootstrap_stacks(region=region)
+            if bootstrap_stacks:
+                print("\nBootstrap Stacks:")
+                for stack in bootstrap_stacks:
+                    print(f"  - {stack['StackName']} ({stack['StackStatus']})")
+            else:
+                print("\nNo bootstrap stacks found.")
+        
+        print("")
+        return 0
+    
+    # Validate arguments
+    if not args.all and not args.environment and not args.bootstrap:
+        parser.error("Must specify --all, --environment, or --bootstrap (or combination)")
+    
+    # Confirmation
+    if not args.force:
+        print("⚠️  CDK Teardown - This will remove infrastructure")
+        print("=" * 60)
+        
+        if args.all or args.environment:
+            env_str = f"environment '{args.environment}'" if args.environment else "all environments"
+            print(f"Application stacks ({env_str}):")
+            app_stacks = list_application_stacks(region=region, environment=args.environment)
+            for stack in app_stacks:
+                print(f"  - {stack['StackName']}")
+        
+        if args.bootstrap:
+            print("\nBootstrap stack:")
+            bootstrap_stacks = list_all_bootstrap_stacks(region=region)
+            for stack in bootstrap_stacks:
+                print(f"  - {stack['StackName']}")
+        
+        print("")
+        response = input("Are you sure you want to continue? [y/N] ")
+        if response.lower() != "y":
+            print("Cancelled.")
+            return 0
+    
+    success = True
+    
+    # Step 1: Remove application stacks using standard CDK destroy
+    if args.all or args.environment:
+        print("\n" + "=" * 60)
+        print("Step 1: Removing Application Stacks")
+        print("=" * 60)
+        print("Using standard 'cdk destroy' command (CDK best practice)")
+        print("This will remove: RAGAgentStack-* and RAGAgentLambdaStack-*")
+        print("")
+        
+        # Use CDK destroy for application stacks (standard CDK approach)
+        if not run_cdk_destroy(environment=args.environment, force=args.force):
+            print("\n⚠️  Warning: CDK destroy may have failed or been cancelled.")
+            print("   Application stacks may still exist. Check the output above.")
+            success = False
+        else:
+            print("\n✅ Application stacks destroyed successfully using 'cdk destroy'.")
+    
+    # Step 2: Remove bootstrap stack (if requested)
+    if args.bootstrap:
+        print("\n" + "=" * 60)
+        print("Step 2: Removing Bootstrap Stack")
+        print("=" * 60)
+        
+        try:
+            result = remove_bootstrap_stack(
+                region=region,
+                wait=args.wait,
+                cleanup_resources=args.cleanup,
+            )
+            
+            if result.get("status") in ["deleted", "deletion_initiated"]:
+                print(f"✅ {result['message']}")
+            else:
+                print(f"⚠️  {result['message']}")
+                success = False
+        except Exception as e:
+            print(f"❌ Failed to remove bootstrap stack: {e}", file=sys.stderr)
+            success = False
+    
+    print("\n" + "=" * 60)
+    if success:
+        print("✅ Teardown completed successfully!")
+    else:
+        print("⚠️  Teardown completed with warnings/errors.")
+        print("   Check the output above for details.")
+    print("=" * 60)
+    
+    return 0 if success else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+

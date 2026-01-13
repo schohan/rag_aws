@@ -736,3 +736,5 @@ Based on this document, you may want to explore:
 - A **trust‑policy template** for third‑party vendors  
 - A **diagram of the confused‑deputy attack** itself  
 - A **step‑by‑step checklist** for securely onboarding vendors
+
+
